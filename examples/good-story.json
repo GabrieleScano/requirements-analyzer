@@ -1,0 +1,11 @@
+{
+  "id": "AUTH-12",
+  "title": "User login",
+  "story": "As a registered user, I want to log in with my username and password so that I can access my account.",
+  "acceptanceCriteria": [
+    "Given valid credentials, when I submit the form, then I am redirected to the inventory page within 2 seconds.",
+    "Given an empty password field, when I submit, then a 'Password is required' error is displayed.",
+    "Given an invalid username or password, when I submit, then a generic 'credentials do not match' error is shown and no session is created.",
+    "Given a locked-out account, when I submit valid credentials, then a lockout error is displayed."
+  ]
+}

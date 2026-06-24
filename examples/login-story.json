@@ -1,0 +1,10 @@
+{
+  "id": "SEARCH-7",
+  "title": "Product search",
+  "story": "As a shopper, I want to search for products so that I can find what I need.",
+  "acceptanceCriteria": [
+    "The search should be fast and return relevant results.",
+    "When I type a query, then matching products are shown.",
+    "Results should handle a large number of products efficiently."
+  ]
+}
