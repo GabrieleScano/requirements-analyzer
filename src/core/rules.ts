@@ -16,9 +16,22 @@ const AMBIGUOUS_TERMS = [
 /** Terms hinting that a quantitative threshold is missing. */
 const UNMEASURED_TERMS = ['large', 'small', 'high', 'low', 'long', 'short', 'heavy'];
 
+/**
+ * Weak modal verbs that turn a requirement into an aspiration: they leave
+ * it unclear whether the behaviour is mandatory, so it can't be verified.
+ * ("should" is deliberately excluded — it is too common in well-formed
+ * criteria to flag without generating noise.)
+ */
+const WEAK_MODAL_TERMS = ['could', 'may', 'might', 'possibly', 'ideally', 'preferably'];
+
 function hasGivenWhenThen(criterion: string): boolean {
   const lower = criterion.toLowerCase();
   return lower.includes('given') && lower.includes('when') && lower.includes('then');
+}
+
+/** Normalize a criterion for duplicate detection: lowercase, collapse whitespace. */
+function normalize(criterion: string): string {
+  return criterion.toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 export function runRuleChecks(story: UserStory): Finding[] {
@@ -32,6 +45,14 @@ export function runRuleChecks(story: UserStory): Finding[] {
       severity: 'low',
       message:
         'Story does not follow the "As a..., I want..., so that..." pattern, making the actor or goal unclear.',
+    });
+  } else if (!storyLower.includes('so that')) {
+    // Actor and goal are present, but the motivation ("so that...") is missing.
+    findings.push({
+      category: 'structure',
+      severity: 'low',
+      message:
+        'Story states the goal but not the benefit ("so that..."), making it hard to judge what success delivers.',
     });
   }
 
@@ -70,6 +91,17 @@ export function runRuleChecks(story: UserStory): Finding[] {
       }
     }
 
+    for (const term of WEAK_MODAL_TERMS) {
+      if (new RegExp(`\\b${term}\\b`).test(lower)) {
+        findings.push({
+          category: 'testability',
+          severity: 'low',
+          message: `Weak modal "${term}" — state whether the behaviour is required, so it can be verified.`,
+          criterion,
+        });
+      }
+    }
+
     if (!hasGivenWhenThen(criterion)) {
       findings.push({
         category: 'structure',
@@ -79,6 +111,23 @@ export function runRuleChecks(story: UserStory): Finding[] {
         criterion,
       });
     }
+  }
+
+  // Duplicate acceptance criteria add noise and hint at copy-paste drift.
+  const seen = new Set<string>();
+  const flaggedDuplicates = new Set<string>();
+  for (const criterion of story.acceptanceCriteria) {
+    const key = normalize(criterion);
+    if (seen.has(key) && !flaggedDuplicates.has(key)) {
+      flaggedDuplicates.add(key);
+      findings.push({
+        category: 'structure',
+        severity: 'low',
+        message: 'Duplicate acceptance criterion — remove the repetition or clarify the difference.',
+        criterion,
+      });
+    }
+    seen.add(key);
   }
 
   // Heuristic: error/negative paths often forgotten.
