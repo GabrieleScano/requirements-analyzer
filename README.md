@@ -19,7 +19,7 @@ The rule engine is the source of truth; AI is additive and best-effort (a networ
 
 ```bash
 npm ci
-npm start examples/login-story.json
+npm start examples/search-story.json
 ```
 
 Example output:
@@ -27,15 +27,15 @@ Example output:
 ```
 Requirements analysis — story SEARCH-7
 ================================================
-Clarity score: 61/100
+Clarity score: 55/100
 
-4 finding(s):
+6 finding(s):
 
 [MEDIUM] (ambiguity) Ambiguous term "fast" — replace with an objective, testable expectation.
            ↳ "The search should be fast and return relevant results."
 [MEDIUM] (measurability) "large" implies a threshold but none is given — specify a measurable value.
            ↳ "Results should handle a large number of products efficiently."
-[HIGH]   (missing-edge-case) No negative or error path described — consider invalid input, empty values and failure handling.
+[HIGH  ] (missing-edge-case) No negative or error path described — consider invalid input, empty values and failure handling.
 ...
 ```
 
@@ -57,7 +57,7 @@ The CLI exits with a non-zero code when high-severity issues are found, so it ca
 
 ```bash
 cp .env.example .env   # add ANTHROPIC_API_KEY
-npm start examples/login-story.json
+npm start examples/search-story.json
 ```
 
 ## Project structure

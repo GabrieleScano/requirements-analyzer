@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
 import { analyzeStory } from './analyzer.js';
+import { loadEnv } from './load-env.js';
 import type { AnalysisReport, Severity, UserStory } from './core/types.js';
+
+// Load an optional ANTHROPIC_API_KEY from a local .env file to enable the AI layer.
+loadEnv();
 
 const SEVERITY_LABEL: Record<Severity, string> = {
   high: 'HIGH  ',

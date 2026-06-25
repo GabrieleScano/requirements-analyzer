@@ -9,9 +9,8 @@
   "scripts": {
     "build": "tsc",
     "start": "tsx src/cli.ts",
-    "analyze": "tsx src/cli.ts examples/login-story.json",
-    "test": "node --import tsx --test tests/*.test.ts",
-    "lint": "eslint . --ext .ts"
+    "analyze": "tsx src/cli.ts examples/search-story.json",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "keywords": ["qa", "requirements", "functional-analysis", "shift-left", "ai", "testing"],
   "author": "Gabriele Scano",
