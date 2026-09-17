@@ -160,3 +160,142 @@ test('flawed story surfaces multiple finding categories', () => {
   const cats = new Set(categories(runRuleChecks(flawedStory)));
   assert.ok(cats.size >= 2);
 });
+
+// --- word forms (a rule that only matched the bare stem missed "efficiently") ---
+
+test('flags inflected forms of ambiguous terms', () => {
+  for (const criterion of [
+    'Given a, when b, then an error is handled efficiently.',
+    'Given a, when b, then an error is shown quickly.',
+    'Given a, when b, then an error is handled appropriately.',
+  ]) {
+    assert.ok(
+      runRuleChecks(storyWith(criterion)).some((f) => f.category === 'ambiguity'),
+      `expected an ambiguity finding for: ${criterion}`,
+    );
+  }
+});
+
+test('does not flag "goods" as the ambiguous term "good"', () => {
+  const findings = runRuleChecks(
+    storyWith('Given an order, when it fails, then the goods are returned.'),
+  );
+  assert.ok(!findings.some((f) => f.category === 'ambiguity'));
+});
+
+// --- measurability needs a quantitative noun nearby ---
+
+test('flags an unmeasured term next to a quantitative noun', () => {
+  for (const criterion of [
+    'Given a query, when I search, then a large number of results loads.',
+    'Given a query, when I search, then the response time should be short.',
+    'Given traffic, when it fails, then the error rate stays low.',
+  ]) {
+    assert.ok(
+      runRuleChecks(storyWith(criterion)).some((f) => f.category === 'measurability'),
+      `expected a measurability finding for: ${criterion}`,
+    );
+  }
+});
+
+test('does not flag an unmeasured term used as a plain qualifier', () => {
+  for (const criterion of [
+    'Given a high-priority order, when it fails, then an error is logged.',
+    'Given a low-stock item, when I open it, then an error banner is shown.',
+    'Given a short name, when I submit, then an error is displayed.',
+  ]) {
+    assert.ok(
+      !runRuleChecks(storyWith(criterion)).some((f) => f.category === 'measurability'),
+      `expected no measurability finding for: ${criterion}`,
+    );
+  }
+});
+
+// --- Given/When/Then must be whole words, in order ---
+
+test('requires Given/When/Then in order', () => {
+  const findings = runRuleChecks(
+    storyWith('Then the error shows, when I click, given an active session.'),
+  );
+  assert.ok(findings.some((f) => /Given\/When\/Then/i.test(f.message)));
+});
+
+test('does not accept "forgiven" and "whenever" as Given/When', () => {
+  const findings = runRuleChecks(
+    storyWith('The debt is forgiven whenever an error occurs, then nothing happens.'),
+  );
+  assert.ok(findings.some((f) => /Given\/When\/Then/i.test(f.message)));
+});
+
+// --- empty criteria ---
+
+test('flags an empty acceptance criterion as high severity', () => {
+  const findings = runRuleChecks({
+    id: 'T',
+    title: 'Blank',
+    story: 'As a user, I want x so that y.',
+    acceptanceCriteria: ['Given a, when b, then an error c is shown.', '   '],
+  });
+  const blank = findings.filter((f) => /Empty acceptance criterion/i.test(f.message));
+  assert.equal(blank.length, 1);
+  assert.equal(blank[0]?.severity, 'high');
+  // The blank entry should not also be reported for its Given/When/Then shape.
+  assert.ok(!findings.some((f) => f.criterion === '   ' && /Given\/When\/Then/i.test(f.message)));
+});
+
+// --- the score must not depend on story length ---
+
+test('clarity score is independent of the number of criteria', () => {
+  const one = ['Given a, when b, then an error c is shown quickly.'];
+  const ten = Array.from({ length: 10 }, () => one[0] as string);
+  const scoreOne = scoreClarity(runRuleChecks(storyWith(one[0] as string)), 1);
+
+  const tenStory = {
+    id: 'T',
+    title: 'Test',
+    story: 'As a user, I want to do something so that I get value.',
+    acceptanceCriteria: ten,
+  };
+  const scoreTen = scoreClarity(runRuleChecks(tenStory), ten.length);
+  assert.equal(scoreOne, scoreTen);
+});
+
+test('twenty clear criteria outscore a single terrible one', () => {
+  const clear = Array.from(
+    { length: 20 },
+    (_, i) => `The system logs an error for case ${i}.`,
+  );
+  const clearStory = {
+    id: 'T',
+    title: 'Clear but not GWT',
+    story: 'As a user, I want x so that y.',
+    acceptanceCriteria: clear,
+  };
+  const clearScore = scoreClarity(runRuleChecks(clearStory), clear.length);
+  const terribleScore = scoreClarity(
+    runRuleChecks(storyWith('it should be fast and good, error')),
+    1,
+  );
+  assert.ok(
+    clearScore > terribleScore,
+    `expected ${clearScore} > ${terribleScore}`,
+  );
+});
+
+test('story-level findings are not diluted by the criteria count', () => {
+  // A missing negative path is a property of the story, so adding more
+  // criteria must not shrink its penalty.
+  const criteria = Array.from({ length: 10 }, (_, i) => `Given ${i}, when I act, then it works.`);
+  const story = {
+    id: 'T',
+    title: 'No negative path',
+    story: 'As a user, I want x so that y.',
+    acceptanceCriteria: criteria,
+  };
+  const findings = runRuleChecks(story);
+  assert.ok(findings.some((f) => f.category === 'missing-edge-case'));
+  // Every criterion is well-formed, so the only penalty is the story-level
+  // high finding: 100 - 20 = 80, whatever the criteria count.
+  assert.equal(scoreClarity(findings, criteria.length), 80);
+  assert.equal(scoreClarity(findings, 2), 80);
+});

@@ -14,6 +14,6 @@ export async function analyzeStory(story: UserStory): Promise<AnalysisReport> {
   return {
     storyId: story.id,
     findings,
-    clarityScore: scoreClarity(findings),
+    clarityScore: scoreClarity(findings, story.acceptanceCriteria.length),
   };
 }
