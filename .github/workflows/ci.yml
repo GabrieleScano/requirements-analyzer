@@ -16,7 +16,13 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Type-check
-        run: npx tsc --noEmit
+      - name: Type-check (src + tests)
+        run: npm run typecheck
       - name: Unit tests
         run: npm test
+      # The `bin` entry points at dist/, so a broken build would otherwise
+      # only surface after publishing.
+      - name: Build
+        run: npm run build
+      - name: Smoke-test the built CLI
+        run: node dist/cli.js examples/good-story.json

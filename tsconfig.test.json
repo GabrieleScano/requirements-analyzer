@@ -1,0 +1,14 @@
+{
+  // The base config emits from src/ only and excludes tests/, so
+  // `tsc --noEmit` never looked at them — a type error in a test stayed
+  // invisible until runtime. This config type-checks both together.
+  // `exclude` must be restated: it is inherited, not merged away, by `extends`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "declaration": false
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
