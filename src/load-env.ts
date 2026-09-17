@@ -8,6 +8,12 @@ import { readFileSync } from 'node:fs';
  * the tool keeps running fully offline — the AI layer simply stays disabled.
  * Kept dependency-free on purpose: the rule engine has no runtime deps and
  * loading a single optional key shouldn't add one.
+ *
+ * The default path is resolved against the current working directory, not
+ * the install location: running the published `reqcheck` binary from an
+ * unrelated directory will not pick up this repository's `.env`. Export
+ * `ANTHROPIC_API_KEY` in the environment for that case — an already-defined
+ * variable always wins over the file.
  */
 export function loadEnv(path = '.env'): void {
   let raw: string;
