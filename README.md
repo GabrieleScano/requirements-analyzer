@@ -27,7 +27,7 @@ Example output:
 ```
 Requirements analysis — story SEARCH-7
 ================================================
-Clarity score: 69/100
+Clarity score: 65/100
 
 7 finding(s):
 
@@ -87,7 +87,7 @@ The JSON shape is stable:
   "reports": [
     {
       "storyId": "SEARCH-7",
-      "clarityScore": 69,
+      "clarityScore": 65,
       "findings": [
         {
           "category": "ambiguity",
@@ -105,7 +105,12 @@ The JSON shape is stable:
 
 The score starts at 100 and subtracts weighted penalties (high 20, medium 8, low 3).
 
-Findings tied to a specific criterion are **averaged over the number of criteria**; only story-level findings (a missing negative path, a malformed story sentence) count in full. Without that, the score measured story length as much as story quality — twenty well-written criteria that merely skipped Given/When/Then scored worse than a single unusable one. As it stands, the score answers "how good is a typical criterion here", and is comparable across stories of different sizes.
+Story-level findings (a missing negative path, a malformed story sentence) count in full. Findings tied to a specific criterion are scored as the **midpoint between the average criterion and the worst one**:
+
+- Summing them made the score measure story length as much as story quality — twenty well-written criteria that merely skipped Given/When/Then scored worse than a single unusable one.
+- Averaging alone let good criteria hide a bad one: an unusable criterion scored 54 on its own and 95 next to nine clean ones, even though it still blocks the story.
+
+A story with **no acceptance criteria is capped at 40**: there is nothing to verify, however well the story sentence reads.
 
 ## Input format
 

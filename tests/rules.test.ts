@@ -246,8 +246,13 @@ test('flags an empty acceptance criterion as high severity', () => {
 // --- the score must not depend on story length ---
 
 test('clarity score is independent of the number of criteria', () => {
+  // Ten distinct criteria of the same quality as the single one (verbatim
+  // copies would add a duplicate finding and measure something else).
   const one = ['Given a, when b, then an error c is shown quickly.'];
-  const ten = Array.from({ length: 10 }, () => one[0] as string);
+  const ten = Array.from(
+    { length: 10 },
+    (_, i) => `Given a${i}, when b, then an error c is shown quickly.`,
+  );
   const scoreOne = scoreClarity(runRuleChecks(storyWith(one[0] as string)), 1);
 
   const tenStory = {
@@ -298,4 +303,119 @@ test('story-level findings are not diluted by the criteria count', () => {
   // high finding: 100 - 20 = 80, whatever the criteria count.
   assert.equal(scoreClarity(findings, criteria.length), 80);
   assert.equal(scoreClarity(findings, 2), 80);
+});
+
+// --- a bad criterion must not hide behind good ones ---
+
+test('one unusable criterion still drags down an otherwise clean story', () => {
+  const terrible = 'It could be fast, good, intuitive and user-friendly, etc.';
+  const clean = Array.from(
+    { length: 9 },
+    (_, i) => `Given case ${i}, when I submit, then an error ${i} is shown.`,
+  );
+  const story = {
+    id: 'T',
+    title: 'Mixed',
+    story: 'As a user, I want x so that y.',
+    acceptanceCriteria: [terrible, ...clean],
+  };
+  const score = scoreClarity(runRuleChecks(story), story.acceptanceCriteria.length);
+  assert.ok(score < 80, `expected the bad criterion to keep the score under 80, got ${score}`);
+});
+
+test('duplicated criteria lower the score', () => {
+  const criterion = 'Given a, when b, then an error c is shown.';
+  const story = {
+    id: 'T',
+    title: 'Dupes',
+    story: 'As a user, I want x so that y.',
+    acceptanceCriteria: [criterion, criterion, criterion],
+  };
+  assert.equal(scoreClarity(runRuleChecks(story), 3), 95);
+});
+
+// --- a story with nothing to verify ---
+
+test('a story without acceptance criteria never scores above 40', () => {
+  const story = {
+    id: 'T',
+    title: 'No criteria',
+    story: 'As a user, I want x so that y.',
+    acceptanceCriteria: [],
+  };
+  assert.equal(scoreClarity(runRuleChecks(story), 0), 40);
+});
+
+test('flags a criterion too short to be verifiable', () => {
+  const findings = runRuleChecks(storyWith('Login works.'));
+  assert.ok(findings.some((f) => f.severity === 'high' && /too short/i.test(f.message)));
+});
+
+test('flags vague outcomes such as "works well" and "correctly"', () => {
+  for (const criterion of [
+    'Given a, when b, then an error page works well.',
+    'Given a, when b, then the error is displayed correctly.',
+  ]) {
+    assert.ok(
+      runRuleChecks(storyWith(criterion)).some((f) => f.category === 'ambiguity'),
+      `expected an ambiguity finding for: ${criterion}`,
+    );
+  }
+});
+
+// --- false positives ---
+
+test('does not flag a speed term that comes with a time budget', () => {
+  const findings = runRuleChecks(
+    storyWith('Given a query, when I search, then results load fast, within 200 ms, or an error is shown.'),
+  );
+  assert.ok(!findings.some((f) => f.category === 'ambiguity'));
+});
+
+test('does not read the month of May as a weak modal', () => {
+  const month = runRuleChecks(
+    storyWith('Given a booking in May, when I open it, then an error is shown.'),
+  );
+  assert.ok(!month.some((f) => /weak modal/i.test(f.message)));
+
+  const modal = runRuleChecks(
+    storyWith('Given a booking, when I open it, then an error may be shown.'),
+  );
+  assert.ok(modal.some((f) => /weak modal "may"/i.test(f.message)));
+});
+
+test('accepts "some" in a Given clause but not in the outcome', () => {
+  const scene = runRuleChecks(
+    storyWith('Given some items in the cart, when I remove one, then an empty state is shown.'),
+  );
+  assert.ok(!scene.some((f) => f.category === 'ambiguity'));
+
+  const outcome = runRuleChecks(
+    storyWith('Given a cart, when I open it, then some error details are shown.'),
+  );
+  assert.ok(outcome.some((f) => /"some"/.test(f.message)));
+});
+
+test('matches the story sentence on whole words', () => {
+  const criteria = ['Given a, when b, then an error c is shown.'];
+  const base = { id: 'T', title: 'Story', acceptanceCriteria: criteria };
+
+  // "has a" is not an actor.
+  const fooled = runRuleChecks({ ...base, story: 'The page has a button and I want it blue.' });
+  assert.ok(fooled.some((f) => /As a\.\.\./.test(f.message)));
+
+  // "As the owner" / "As an admin" are.
+  for (const story of [
+    'As the owner, I want to export so that I can audit.',
+    'As an admin, I need to export so that I can audit.',
+  ]) {
+    assert.equal(runRuleChecks({ ...base, story }).length, 0, story);
+  }
+});
+
+test('does not count "failover" as a negative path', () => {
+  const findings = runRuleChecks(
+    storyWith('Given a node, when I save, then the failover node is updated.'),
+  );
+  assert.ok(findings.some((f) => f.category === 'missing-edge-case'));
 });
